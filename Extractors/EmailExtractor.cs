@@ -5,11 +5,16 @@ using OpenPop.Mime;
 namespace EmailParsing.Extractors;
 
 /// <summary>
-/// Извлекатель содержимого электронной почты из файлов EML.
+///     Извлекатель содержимого электронной почты из файлов EML.
 /// </summary>
-/// <param name="fileSystemHelper">Вспомогательный класс для работы с файловой системой.</param>
-internal class EmailExtractor(IFileSystemHelper fileSystemHelper) : IEmailExtractor
+internal class EmailExtractor : IEmailExtractor
 {
+    private readonly IFileSystemHelper _helper;
+
+    public EmailExtractor(IFileSystemHelper helper)
+    {
+        _helper = helper;
+    }
     /// <summary>
     /// Асинхронно извлекает содержимое электронной почты из файла EML.
     /// </summary>
@@ -26,7 +31,7 @@ internal class EmailExtractor(IFileSystemHelper fileSystemHelper) : IEmailExtrac
             var emailMessage = Message.Load(new FileInfo(emailPath));
 
             var subject =
-                fileSystemHelper.GetSubjectOrDefault(fileSystemHelper.SanitizeString(emailMessage.Headers.Subject));
+                _helper.GetSubjectOrDefault(_helper.SanitizeString(emailMessage.Headers.Subject));
             var plainText = GetPlainTextBody(emailMessage);
             var htmlText = GetHtmlBody(emailMessage);
             var attachments = ExtractAttachments(emailMessage);

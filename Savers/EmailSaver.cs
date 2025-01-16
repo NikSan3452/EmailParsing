@@ -5,11 +5,16 @@ using EmailParsing.Models;
 namespace EmailParsing.Savers;
 
 /// <summary>
-/// Сохраняет содержимое электронной почты в файловую систему.
+///     Сохраняет содержимое электронной почты в файловую систему.
 /// </summary>
-/// <param name="helper">Вспомогательный класс для работы с файловой системой.</param>
-internal class EmailSaver(IFileSystemHelper helper) : IEmailSaver
+internal class EmailSaver : IEmailSaver
 {
+    private readonly IFileSystemHelper _helper;
+
+    public EmailSaver(IFileSystemHelper helper)
+    {
+        _helper = helper;
+    }
     /// <summary>
     /// Асинхронно сохраняет содержимое электронной почты в указанную директорию.
     /// </summary>
@@ -21,8 +26,8 @@ internal class EmailSaver(IFileSystemHelper helper) : IEmailSaver
         if (string.IsNullOrEmpty(content.Subject)) return;
 
         var emailDirectory = Path.Combine(outputDirectory, content.Subject);
-        if (OperatingSystem.IsWindows()) emailDirectory = helper.ConvertToLongPath(emailDirectory);
-        emailDirectory = helper.CreateDirectory(emailDirectory);
+        if (OperatingSystem.IsWindows()) emailDirectory = _helper.ConvertToLongPath(emailDirectory);
+        emailDirectory = _helper.CreateDirectory(emailDirectory);
 
         await SavePlainTextBody(content, emailDirectory);
         await SaveHtmlBody(content, emailDirectory);
@@ -40,7 +45,7 @@ internal class EmailSaver(IFileSystemHelper helper) : IEmailSaver
         if (!string.IsNullOrEmpty(content.PlainTextBody))
         {
             var filePath = Path.Combine(emailDirectory, $"{content.Subject}.txt");
-            if (OperatingSystem.IsWindows()) filePath = helper.ConvertToLongPath(filePath);
+            if (OperatingSystem.IsWindows()) filePath = _helper.ConvertToLongPath(filePath);
             await File.WriteAllTextAsync(filePath, content.PlainTextBody, Encoding.UTF8);
         }
     }
@@ -56,7 +61,7 @@ internal class EmailSaver(IFileSystemHelper helper) : IEmailSaver
         if (!string.IsNullOrEmpty(content.HtmlBody))
         {
             var filePath = Path.Combine(emailDirectory, $"{content.Subject}.html");
-            if (OperatingSystem.IsWindows()) filePath = helper.ConvertToLongPath(filePath);
+            if (OperatingSystem.IsWindows()) filePath = _helper.ConvertToLongPath(filePath);
             await File.WriteAllTextAsync(filePath, content.HtmlBody, Encoding.UTF8);
         }
     }
@@ -75,7 +80,7 @@ internal class EmailSaver(IFileSystemHelper helper) : IEmailSaver
                 if (attachment.FileName == null) continue;
 
                 var filePath = Path.Combine(emailDirectory, attachment.FileName);
-                if (OperatingSystem.IsWindows()) filePath = helper.ConvertToLongPath(filePath);
+                if (OperatingSystem.IsWindows()) filePath = _helper.ConvertToLongPath(filePath);
                 if (attachment.Content != null) await File.WriteAllBytesAsync(filePath, attachment.Content);
             }
     }
