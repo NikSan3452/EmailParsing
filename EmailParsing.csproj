@@ -5,6 +5,12 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>EmailParsing</RootNamespace>
+        <Title>EmailParsing</Title>
+        <Authors>NikSan3452</Authors>
+        <Description>Library for parsing eml files</Description>
+        <PackageId>EmailParsing</PackageId>
+        <Version>1.0.0</Version>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     </PropertyGroup>
 
     <ItemGroup>
