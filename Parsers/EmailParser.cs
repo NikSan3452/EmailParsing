@@ -1,9 +1,9 @@
-﻿using System.Text;
-using EmailParsing.Archivers;
+﻿using EmailParsing.Archivers;
 using EmailParsing.Extractors;
 using EmailParsing.Helpers;
 using EmailParsing.Savers;
 using EmailParsing.Scanners;
+using System.Text;
 
 namespace EmailParsing.Parsers;
 
@@ -89,7 +89,12 @@ public class EmailParser : IEmailParser
         await UnpackArchive(sourcePath);
         var emailFiles = ScanForEmlFiles();
 
-        if (emailFiles.Count == 0) return;
+        if (emailFiles.Count == 0)
+        {
+            Cleanup(sourcePath);
+            return;
+        };
+
         await ExtractAttachments(emailFiles);
 
         await PrepareOutputArchive();
