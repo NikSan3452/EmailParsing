@@ -73,7 +73,7 @@ internal class EmailExtractor : IEmailExtractor
     /// </summary>
     /// <param name="message">Сообщение.</param>
     /// <returns>Список вложений.</returns>
-    private static List<Attachment> ExtractAttachments(Message message)
+    private List<Attachment> ExtractAttachments(Message message)
     {
         var attachments = new List<Attachment>();
 
@@ -83,7 +83,7 @@ internal class EmailExtractor : IEmailExtractor
 
             attachments.Add(new Attachment
             {
-                FileName = part.FileName,
+                FileName = _helper.SanitizeString(part.FileName),
                 ContentType = part.ContentType.MediaType,
                 Content = part.Body
             });
