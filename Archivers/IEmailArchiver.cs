@@ -20,4 +20,9 @@ internal interface IEmailArchiver
     /// <param name="destinationDirectory">Путь к директории, в которую необходимо распаковать архив.</param>
     /// <returns>Задача, представляющая асинхронную операцию распаковки.</returns>
     Task UnZip(string zipFile, string destinationDirectory);
+
+    /// <summary>
+    /// Событие, возникающее при изменении прогресса операции архивирования/разархивирования.
+    /// </summary>
+    public event Action<long, long>? ProgressChanged;
 }

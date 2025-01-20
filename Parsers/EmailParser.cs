@@ -30,83 +30,81 @@ public class EmailParser : IEmailParser
         _extractor = new EmailExtractor(_helper);
         _scanner = new EmailScanner();
         _archiver = new EmailArchiver();
+        _archiver.ProgressChanged += ArchiverProgressChanged;
 
         TempDirectory = Path.GetTempPath();
-        EmailParserDirectory = "EmailParser";
         ZipFilePath = Path.Combine(_helper.GetDesktopPath(), $"{Guid.NewGuid()}.zip");
     }
 
     /// <summary>
-    ///     Путь к временной директории.
+    ///     Путь к системной директории с временными файлами.
     /// </summary>
     private string TempDirectory { get; }
 
     /// <summary>
-    ///     Имя директории парсера электронной почты.
+    ///     Имя директории парсера электронной почты, которая будет создана во временной директории.
+    ///     По умолчанию EmailParser.
     /// </summary>
-    private string EmailParserDirectory { get; }
+    private string EmailParserDirectory { get; } = "EmailParser";
 
     /// <summary>
     ///     Путь к временной директории для распаковки писем из архива.
     /// </summary>
     private string TempUnzippedEmlDir { get; set; } = string.Empty;
 
-    /// <summary>
-    ///     Путь к выходному ZIP-архиву.
-    /// </summary>
+    /// <inheritdoc>
     public string ZipFilePath { get; set; }
 
-    /// <summary>
-    ///     Путь к временной директории для хранения извлеченных вложений.
-    /// </summary>
+    /// <inheritdoc>
     public string TempExtractedAttachmentsDir { get; set; } = string.Empty;
 
-    /// <summary>
-    ///     Общий прогресс обработки файлов.
-    /// </summary>
-    public int TotalProgress { get; private set; }
+    /// <inheritdoc>
+    public int Progress { get; private set; }
 
-    /// <summary>
-    ///     Флаг указывающий удалить ли исходный файл.
-    /// </summary>
+    /// <inheritdoc>
     public bool DeleteSourceFile { get; set; } = false;
 
-    /// <summary>
-    ///     Событие прогресса.
-    /// </summary>
+    /// <inheritdoc>
     public event EventHandler<int>? ProgressChanged;
 
-    /// <summary>
-    ///     Обрабатывает архив.
-    /// </summary>
-    /// <param name="sourcePath">Путь к архиву.</param>
-    /// <returns>Задача, представляющая асинхронную операцию.</returns>
-    public async Task ParseArchive(string sourcePath)
+    /// <inheritdoc>
+    public OperationType CurrentOperation { get; set; } = OperationType.None;
+
+    /// <inheritdoc>
+    public async Task ParseArchiveAsync(string sourcePath)
     {
         InitializeTempUnzippedEmlDir();
         InitializeExtractedAttachmentsDir();
 
-        await UnpackArchive(sourcePath);
+        CurrentOperation = OperationType.Unpacking;
+        Progress = 0;
+        OnProgressChanged(Progress);
+        await UnpackArchiveAsync(sourcePath);
+
         var emailFiles = ScanForEmlFiles();
 
         if (emailFiles.Count == 0)
         {
             Cleanup(sourcePath);
             return;
-        };
+        }
 
-        await ExtractAttachments(emailFiles);
+        CurrentOperation = OperationType.Extraction;
+        Progress = 0;
+        OnProgressChanged(Progress);
+        await ExtractAttachmentsAsync(emailFiles);
 
-        await PrepareOutputArchive();
+        CurrentOperation = OperationType.Packing;
+        Progress = 0;
+        OnProgressChanged(Progress);
+        await PrepareOutputArchiveAsync();
+
         Cleanup(sourcePath);
+        CurrentOperation = OperationType.Complete;
     }
 
-    /// <summary>
-    ///     Обрабатывает EML-файл.
-    /// </summary>
-    /// <param name="sourcePath">Путь к EML-файлу.</param>
-    /// <returns>Задача, представляющая асинхронную операцию.</returns>
-    public async Task ParseEmlFile(string sourcePath)
+    /// <inheritdoc>
+    public async Task ParseEmlFileAsync(string sourcePath)
     {
         InitializeExtractedAttachmentsDir();
 
@@ -114,9 +112,14 @@ public class EmailParser : IEmailParser
 
         await _saver.SaveEmailContentAsync(content, TempExtractedAttachmentsDir);
 
-        await _archiver.Zip(TempExtractedAttachmentsDir, ZipFilePath);
+        CurrentOperation = OperationType.Packing;
+        Progress = 0;
+        OnProgressChanged(Progress);
+        await PrepareOutputArchiveAsync();
 
+        CurrentOperation = OperationType.Cleanup;
         Cleanup(sourcePath);
+        CurrentOperation = OperationType.Complete;
     }
 
     /// <summary>
@@ -132,7 +135,7 @@ public class EmailParser : IEmailParser
     ///     Распаковывает архив.
     /// </summary>
     /// <param name="sourcePath">Путь к архиву.</param>
-    private async Task UnpackArchive(string sourcePath)
+    private async Task UnpackArchiveAsync(string sourcePath)
     {
         await _archiver.UnZip(sourcePath, TempUnzippedEmlDir);
     }
@@ -151,28 +154,25 @@ public class EmailParser : IEmailParser
     ///     Извлекает вложения из EML-файлов.
     /// </summary>
     /// <param name="emailFiles">Список путей к EML-файлам.</param>
-    private async Task ExtractAttachments(List<string> emailFiles)
+    private async Task ExtractAttachmentsAsync(List<string> emailFiles)
     {
-        TotalProgress = 0;
         var processedFiles = 0;
         var totalFiles = emailFiles.Count;
 
-        var contentList = emailFiles.Select(email => _extractor.ExtractEmailContentAsync(email)).ToList();
-
-        foreach (var contentTask in contentList)
+        foreach (var emailFile in emailFiles)
         {
-            var content = await contentTask;
+            var content = await _extractor.ExtractEmailContentAsync(emailFile);
             await _saver.SaveEmailContentAsync(content, TempExtractedAttachmentsDir);
             processedFiles++;
-            TotalProgress = (int)((double)processedFiles / totalFiles * 100);
-            OnProgressChanged(TotalProgress);
+            Progress = (int)((double)processedFiles / totalFiles * 100);
+            OnProgressChanged(Progress);
         }
     }
 
     /// <summary>
     ///     Подготавливает выходной архив.
     /// </summary>
-    private async Task PrepareOutputArchive()
+    private async Task PrepareOutputArchiveAsync()
     {
         await _archiver.Zip(TempExtractedAttachmentsDir, ZipFilePath);
     }
@@ -207,4 +207,51 @@ public class EmailParser : IEmailParser
             TempUnzippedEmlDir =
                 _helper.CreateDirectory(Path.Combine(TempDirectory, EmailParserDirectory, Guid.NewGuid().ToString()));
     }
+
+    /// <summary>
+    ///     Обработчик события изменения прогресса архиватора.
+    /// </summary>
+    /// <param name="processedBytes">Обработано байт.</param>
+    /// <param name="totalBytes">Всего байт.</param>
+    private void ArchiverProgressChanged(long processedBytes, long totalBytes)
+    {
+        Progress = totalBytes > 0 ? (int)((double)processedBytes / totalBytes * 100) : 0;
+        OnProgressChanged(Progress);
+    }
+}
+
+/// <summary>
+///     Типы операций, выполняемых парсером.
+/// </summary>
+public enum OperationType
+{
+    /// <summary>
+    ///     Операция не определена.
+    /// </summary>
+    None,
+
+    /// <summary>
+    ///     Распаковка архива.
+    /// </summary>
+    Unpacking,
+
+    /// <summary>
+    ///     Извлечение вложений.
+    /// </summary>
+    Extraction,
+
+    /// <summary>
+    ///     Упаковка.
+    /// </summary>
+    Packing,
+
+    /// <summary>
+    ///     Очистка.
+    /// </summary>
+    Cleanup,
+
+    /// <summary>
+    ///     Выполнено.
+    /// </summary>
+    Complete
 }

@@ -1,6 +1,6 @@
-﻿using System.IO.Compression;
-using SharpCompress.Common;
+﻿using SharpCompress.Common;
 using SharpCompress.Readers;
+using System.IO.Compression;
 
 namespace EmailParsing.Archivers;
 
@@ -9,23 +9,32 @@ namespace EmailParsing.Archivers;
 /// </summary>
 internal class EmailArchiver : IEmailArchiver
 {
-    /// <summary>
-    ///     Архивирует указанную директорию в ZIP-архив.
-    /// </summary>
-    /// <param name="sourceDirectory">Путь к директории, которую необходимо архивировать.</param>
-    /// <param name="zipFile">Путь к создаваемому ZIP-архиву.</param>
-    /// <returns>Задача, представляющая асинхронную операцию архивирования.</returns>
+    /// <inheritdoc>
+    public event Action<long, long>? ProgressChanged;
+
+    /// <inheritdoc>
     public async Task Zip(string sourceDirectory, string zipFile)
     {
-        await Task.Run(() => ZipFile.CreateFromDirectory(sourceDirectory, zipFile));
+        var totalBytes = GetDirectorySize(sourceDirectory);
+        long processedBytes = 0;
+
+        await Task.Run(() =>
+        {
+            using var zipArchive = ZipFile.Open(zipFile, ZipArchiveMode.Create);
+            foreach (var filePath in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+            {
+                var entryName = filePath.Substring(sourceDirectory.Length + 1);
+                var entry = zipArchive.CreateEntryFromFile(filePath, entryName);
+
+                // Обновление прогресса после добавления каждого файла
+                var fileInfo = new FileInfo(filePath);
+                processedBytes += fileInfo.Length;
+                ProgressChanged?.Invoke(processedBytes, totalBytes);
+            }
+        });
     }
 
-    /// <summary>
-    ///     Распаковывает ZIP-архив в указанную директорию.
-    /// </summary>
-    /// <param name="sourceArchive">Путь к ZIP-архиву.</param>
-    /// <param name="destinationDirectory">Путь к директории, в которую необходимо распаковать архив.</param>
-    /// <returns>Задача, представляющая асинхронную операцию распаковки.</returns>
+    /// <inheritdoc>
     public async Task UnZip(string sourceArchive, string destinationDirectory)
     {
         await Task.Run(() =>
@@ -35,10 +44,40 @@ internal class EmailArchiver : IEmailArchiver
             using var stream = File.OpenRead(sourceArchive);
             var reader = ReaderFactory.Open(stream);
 
+            // Получаем общий размер архива для расчета прогресса
+            long totalBytes = stream.Length;
+            long processedBytes = 0;
+
             while (reader.MoveToNextEntry())
+            {
                 if (!reader.Entry.IsDirectory)
-                    reader.WriteEntryToDirectory(destinationDirectory,
-                        new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
+                {
+                    // Отслеживаем прогресс распаковки на основе размера текущей записи
+                    reader.WriteEntryToDirectory(destinationDirectory, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
+
+                    // Обновляем прогресс после распаковки каждой записи
+                    processedBytes = stream.Position;
+                    ProgressChanged?.Invoke(processedBytes, totalBytes);
+                }
+            }
         });
+    }
+
+    /// <summary>
+    ///     Вычисляет общий размер директории, включая все вложенные файлы.
+    /// </summary>
+    /// <param name="directoryPath">Путь к директории.</param>
+    /// <returns>Размер директории в байтах.</returns>
+    private static long GetDirectorySize(string directoryPath)
+    {
+        long size = 0;
+        var directoryInfo = new DirectoryInfo(directoryPath);
+
+        foreach (var fileInfo in directoryInfo.GetFiles("*", SearchOption.AllDirectories))
+        {
+            size += fileInfo.Length;
+        }
+
+        return size;
     }
 }

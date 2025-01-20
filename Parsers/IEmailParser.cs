@@ -16,9 +16,9 @@ public interface IEmailParser
     string TempExtractedAttachmentsDir { get; set; }
 
     /// <summary>
-    ///     Общий прогресс обработки файлов.
+    ///    Прогресс обработки файлов.
     /// </summary>
-    public int TotalProgress { get; }
+    public int Progress { get; }
 
     /// <summary>
     ///     Флаг указывающий удалить ли исходный файл.
@@ -26,18 +26,23 @@ public interface IEmailParser
     public bool DeleteSourceFile { get; set; }
 
     /// <summary>
-    ///     Загружает и обрабатывает EML-файл.
+    ///     Текущая выполняемая операция.
+    /// </summary>
+    public OperationType CurrentOperation { get; }
+
+    /// <summary>
+    ///     Обрабатывает EML-файл.
     /// </summary>
     /// <param name="sourcePath">Путь к EML-файлу.</param>
     /// <returns>Задача, представляющая асинхронную операцию.</returns>
-    Task ParseEmlFile(string sourcePath);
+    Task ParseEmlFileAsync(string sourcePath);
 
     /// <summary>
-    ///     Загружает и обрабатывает архив.
+    ///     Обрабатывает архив.
     /// </summary>
     /// <param name="sourcePath">Путь к архиву.</param>
     /// <returns>Задача, представляющая асинхронную операцию.</returns>
-    Task ParseArchive(string sourcePath);
+    Task ParseArchiveAsync(string sourcePath);
 
     /// <summary>
     ///     Событие прогресса.
