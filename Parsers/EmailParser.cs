@@ -85,7 +85,7 @@ public class EmailParser : IEmailParser
 
         if (emailFiles.Count == 0)
         {
-            Cleanup(sourcePath);
+            await CleanupAsync(sourcePath);
             return;
         }
 
@@ -99,8 +99,7 @@ public class EmailParser : IEmailParser
         OnProgressChanged(Progress);
         await PrepareOutputArchiveAsync();
 
-        Cleanup(sourcePath);
-        CurrentOperation = OperationType.Complete;
+        await CleanupAsync(sourcePath);
     }
 
     /// <inheritdoc>
@@ -118,8 +117,7 @@ public class EmailParser : IEmailParser
         await PrepareOutputArchiveAsync();
 
         CurrentOperation = OperationType.Cleanup;
-        Cleanup(sourcePath);
-        CurrentOperation = OperationType.Complete;
+        await CleanupAsync(sourcePath);
     }
 
     /// <summary>
@@ -181,11 +179,16 @@ public class EmailParser : IEmailParser
     ///     Очищает временные директории и удаляет исходный файл.
     /// </summary>
     /// <param name="sourcePath">Путь к исходному файлу.</param>
-    private void Cleanup(string sourcePath)
+    private async Task CleanupAsync(string sourcePath)
     {
-        if (DeleteSourceFile) _helper.DeleteFiles(new List<string> { sourcePath });
-        _helper.DeleteDirectory(TempUnzippedEmlDir);
-        _helper.DeleteDirectory(TempExtractedAttachmentsDir);
+        if (DeleteSourceFile)
+            _helper.DeleteFiles(new List<string> { sourcePath });
+
+        await Task.Run(() => _helper.DeleteDirectory(TempUnzippedEmlDir));
+        await Task.Run(() => _helper.DeleteDirectory(TempExtractedAttachmentsDir));
+
+        CurrentOperation = OperationType.Complete;
+        OnProgressChanged(Progress);
     }
 
     /// <summary>
