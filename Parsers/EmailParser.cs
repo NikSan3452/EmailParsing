@@ -52,25 +52,25 @@ public class EmailParser : IEmailParser
     /// </summary>
     private string TempUnzippedEmlDir { get; set; } = string.Empty;
 
-    /// <inheritdoc>
+    /// <inheritdoc/>
     public string ZipFilePath { get; set; }
 
-    /// <inheritdoc>
+    /// <inheritdoc/>
     public string TempExtractedAttachmentsDir { get; set; } = string.Empty;
 
-    /// <inheritdoc>
+    /// <inheritdoc/>
     public int Progress { get; private set; }
 
-    /// <inheritdoc>
+    /// <inheritdoc/>
     public bool DeleteSourceFile { get; set; } = false;
 
-    /// <inheritdoc>
+    /// <inheritdoc/>
     public event EventHandler<int>? ProgressChanged;
 
-    /// <inheritdoc>
-    public OperationType CurrentOperation { get; set; } = OperationType.None;
+    /// <inheritdoc/>
+    public OperationType CurrentOperation { get; private set; } = OperationType.None;
 
-    /// <inheritdoc>
+    /// <inheritdoc/>
     public async Task ParseArchiveAsync(string sourcePath)
     {
         InitializeTempUnzippedEmlDir();
@@ -102,7 +102,7 @@ public class EmailParser : IEmailParser
         await CleanupAsync(sourcePath);
     }
 
-    /// <inheritdoc>
+    /// <inheritdoc/>
     public async Task ParseEmlFileAsync(string sourcePath)
     {
         InitializeExtractedAttachmentsDir();

@@ -9,10 +9,10 @@ namespace EmailParsing.Archivers;
 /// </summary>
 internal class EmailArchiver : IEmailArchiver
 {
-    /// <inheritdoc>
+    /// <inheritdoc/>
     public event Action<long, long>? ProgressChanged;
 
-    /// <inheritdoc>
+    /// <inheritdoc/>
     public async Task Zip(string sourceDirectory, string zipFile)
     {
         var totalBytes = GetDirectorySize(sourceDirectory);
@@ -34,7 +34,7 @@ internal class EmailArchiver : IEmailArchiver
         });
     }
 
-    /// <inheritdoc>
+    /// <inheritdoc/>
     public async Task UnZip(string sourceArchive, string destinationDirectory)
     {
         await Task.Run(() =>
