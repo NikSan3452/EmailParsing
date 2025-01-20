@@ -45,8 +45,7 @@ internal class EmailArchiver : IEmailArchiver
             var reader = ReaderFactory.Open(stream);
 
             // Получаем общий размер архива для расчета прогресса
-            long totalBytes = stream.Length;
-            long processedBytes = 0;
+            var totalBytes = stream.Length;
 
             while (reader.MoveToNextEntry())
             {
@@ -56,7 +55,7 @@ internal class EmailArchiver : IEmailArchiver
                     reader.WriteEntryToDirectory(destinationDirectory, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
 
                     // Обновляем прогресс после распаковки каждой записи
-                    processedBytes = stream.Position;
+                    var processedBytes = stream.Position;
                     ProgressChanged?.Invoke(processedBytes, totalBytes);
                 }
             }
