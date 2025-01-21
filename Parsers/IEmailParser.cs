@@ -11,12 +11,28 @@ public interface IEmailParser
     string ZipFilePath { get; set; }
 
     /// <summary>
+    ///     Путь к директории с временными файлами.
+    /// </summary>
+    public string TempDirectory { get; set; }
+
+    /// <summary>
     ///     Путь к временной директории для хранения извлеченных вложений.
     /// </summary>
     string TempExtractedAttachmentsDir { get; set; }
 
     /// <summary>
-    ///    Прогресс обработки файлов.
+    ///     Путь к временной директории для распаковки писем из архива.
+    /// </summary>
+    public string TempUnzippedEmlDir { get; set; }
+
+    /// <summary>
+    ///     Имя директории парсера электронной почты, которая будет создана во временной директории.
+    ///     По умолчанию EmailParser.
+    /// </summary>
+    public string EmailParserDirectory { get; set; }
+
+    /// <summary>
+    ///     Прогресс обработки файлов.
     /// </summary>
     public int Progress { get; }
 
@@ -31,18 +47,26 @@ public interface IEmailParser
     public OperationType CurrentOperation { get; }
 
     /// <summary>
+    ///     Путь к исходному файлу.
+    /// </summary>
+    public string SourceFilePath { get; set; }
+
+    /// <summary>
     ///     Обрабатывает EML-файл.
     /// </summary>
-    /// <param name="sourcePath">Путь к EML-файлу.</param>
     /// <returns>Задача, представляющая асинхронную операцию.</returns>
-    Task ParseEmlFileAsync(string sourcePath);
+    Task ParseEmlFileAsync();
 
     /// <summary>
     ///     Обрабатывает архив.
     /// </summary>
-    /// <param name="sourcePath">Путь к архиву.</param>
     /// <returns>Задача, представляющая асинхронную операцию.</returns>
-    Task ParseArchiveAsync(string sourcePath);
+    Task ParseArchiveAsync();
+
+    /// <summary>
+    ///     Очищает временные директории и удаляет исходный файл.
+    /// </summary>
+    Task CleanupAsync();
 
     /// <summary>
     ///     Событие прогресса.

@@ -35,6 +35,7 @@ internal class EmailArchiver : IEmailArchiver
     }
 
     /// <inheritdoc/>
+    /// <inheritdoc/>
     public async Task UnZip(string sourceArchive, string destinationDirectory)
     {
         await Task.Run(() =>
@@ -42,8 +43,8 @@ internal class EmailArchiver : IEmailArchiver
             if (!Directory.Exists(destinationDirectory)) Directory.CreateDirectory(destinationDirectory);
 
             using var stream = File.OpenRead(sourceArchive);
-            var reader = ReaderFactory.Open(stream);
-
+            using var reader = ReaderFactory.Open(stream);
+            
             // Получаем общий размер архива для расчета прогресса
             var totalBytes = stream.Length;
 
