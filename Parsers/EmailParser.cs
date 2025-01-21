@@ -17,6 +17,7 @@ public class EmailParser : IEmailParser
     private readonly IFileSystemHelper _helper;
     private readonly IEmailSaver _saver;
     private readonly IEmailScanner _scanner;
+    private CancellationTokenSource _cts;
 
     /// <summary>
     ///     Конструктор класса EmailParser.
@@ -67,60 +68,83 @@ public class EmailParser : IEmailParser
     public string SourceFilePath { get; set; } = string.Empty;
 
     /// <inheritdoc />
-    public async Task ParseArchiveAsync()
+    public async Task ParseArchiveAsync(CancellationToken cancellationToken = default)
     {
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
         InitializeTempUnzippedEmlDir();
         InitializeExtractedAttachmentsDir();
 
         CurrentOperation = OperationType.Unpacking;
         Progress = 0;
         OnProgressChanged(Progress);
-        await UnpackArchiveAsync();
+        try
+        {
+            await UnpackArchiveAsync(_cts.Token);
 
-        var emailFiles = ScanForEmlFiles();
+            var emailFiles = await ScanForEmlFiles();
 
-        if (emailFiles.Count == 0)
+            if (emailFiles.Count == 0)
+            {
+                await CleanupAsync();
+                return;
+            }
+
+            CurrentOperation = OperationType.Extraction;
+            Progress = 0;
+            OnProgressChanged(Progress);
+            await ExtractAttachmentsAsync(emailFiles, _cts.Token);
+
+            CurrentOperation = OperationType.Packing;
+            Progress = 0;
+            OnProgressChanged(Progress);
+            await PrepareOutputArchiveAsync(_cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Операция была отменена в ParseArchiveAsync");
+        }
+        finally
         {
             await CleanupAsync();
-            return;
         }
-
-        CurrentOperation = OperationType.Extraction;
-        Progress = 0;
-        OnProgressChanged(Progress);
-        await ExtractAttachmentsAsync(emailFiles);
-
-        CurrentOperation = OperationType.Packing;
-        Progress = 0;
-        OnProgressChanged(Progress);
-        await PrepareOutputArchiveAsync();
-
-        await CleanupAsync();
     }
 
     /// <inheritdoc />
-    public async Task ParseEmlFileAsync()
+    public async Task ParseEmlFileAsync(CancellationToken cancellationToken = default)
     {
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
         InitializeExtractedAttachmentsDir();
 
-        var content = await _extractor.ExtractEmailContentAsync(SourceFilePath);
+        try
+        {
+            var content = await _extractor.ExtractEmailContentAsync(SourceFilePath, cancellationToken);
+            await _saver.SaveEmailContentAsync(content, TempExtractedAttachmentsDir, cancellationToken);
 
-        await _saver.SaveEmailContentAsync(content, TempExtractedAttachmentsDir);
-
-        CurrentOperation = OperationType.Packing;
-        Progress = 0;
-        OnProgressChanged(Progress);
-        await PrepareOutputArchiveAsync();
-
-        CurrentOperation = OperationType.Cleanup;
-        await CleanupAsync();
-        CurrentOperation = OperationType.Complete;
-        OnProgressChanged(Progress);
+            CurrentOperation = OperationType.Packing;
+            Progress = 0;
+            OnProgressChanged(Progress);
+            await PrepareOutputArchiveAsync(_cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Операция была отменена в ParseEmlFileAsync.");
+        }
+        finally
+        {
+            CurrentOperation = OperationType.Cleanup;
+            await CleanupAsync();
+            CurrentOperation = OperationType.Complete;
+            OnProgressChanged(Progress);
+        }
     }
 
     /// <inheritdoc />
     public async Task CleanupAsync()
     {
+        _cts?.Cancel();
+
         if (DeleteSourceFile)
             _helper.DeleteFiles(new List<string> { SourceFilePath });
 
@@ -139,35 +163,38 @@ public class EmailParser : IEmailParser
 
     /// <summary>
     ///     Распаковывает архив.
+    ///     <param name="cancellationToken">Токен отмены</param>
     /// </summary>
-    private async Task UnpackArchiveAsync()
+    private async Task UnpackArchiveAsync(CancellationToken cancellationToken)
     {
-        await _archiver.UnZip(SourceFilePath, TempUnzippedEmlDir);
+        await _archiver.UnZip(SourceFilePath, TempUnzippedEmlDir, cancellationToken);
     }
 
     /// <summary>
     ///     Сканирует директорию на наличие EML-файлов.
     /// </summary>
     /// <returns>Список путей к EML-файлам.</returns>
-    private List<string> ScanForEmlFiles()
+    private async Task<List<string>> ScanForEmlFiles()
     {
-        var emailFiles = _scanner.ScanForEmailFiles(TempUnzippedEmlDir);
-        return emailFiles;
+        return await Task.Run(() => _scanner.ScanForEmailFiles(TempUnzippedEmlDir));
     }
 
     /// <summary>
     ///     Извлекает вложения из EML-файлов.
     /// </summary>
     /// <param name="emailFiles">Список путей к EML-файлам.</param>
-    private async Task ExtractAttachmentsAsync(List<string> emailFiles)
+    /// <param name="cancellationToken">Токен отмены.</param>
+    private async Task ExtractAttachmentsAsync(List<string> emailFiles, CancellationToken cancellationToken)
     {
         var processedFiles = 0;
         var totalFiles = emailFiles.Count;
 
         foreach (var emailFile in emailFiles)
         {
-            var content = await _extractor.ExtractEmailContentAsync(emailFile);
-            await _saver.SaveEmailContentAsync(content, TempExtractedAttachmentsDir);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var content = await _extractor.ExtractEmailContentAsync(emailFile, cancellationToken);
+            await _saver.SaveEmailContentAsync(content, TempExtractedAttachmentsDir, cancellationToken);
             processedFiles++;
             Progress = (int)((double)processedFiles / totalFiles * 100);
             OnProgressChanged(Progress);
@@ -176,10 +203,11 @@ public class EmailParser : IEmailParser
 
     /// <summary>
     ///     Подготавливает выходной архив.
+    ///     <param name="cancellationToken">Токен отмены.</param>
     /// </summary>
-    private async Task PrepareOutputArchiveAsync()
+    private async Task PrepareOutputArchiveAsync(CancellationToken cancellationToken)
     {
-        await _archiver.Zip(TempExtractedAttachmentsDir, ZipFilePath);
+        await _archiver.Zip(TempExtractedAttachmentsDir, ZipFilePath, cancellationToken);
     }
 
     /// <summary>

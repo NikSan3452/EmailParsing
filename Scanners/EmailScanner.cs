@@ -5,11 +5,7 @@
 /// </summary>
 internal class EmailScanner : IEmailScanner
 {
-    /// <summary>
-    /// Сканирует указанную директорию на наличие файлов электронной почты (EML).
-    /// </summary>
-    /// <param name="directory">Путь к директории для сканирования.</param>
-    /// <returns>Список путей к найденным EML-файлам.</returns>
+    /// <inheritdoc />
     public List<string> ScanForEmailFiles(string? directory)
     {
         var emailFiles = new List<string>();
@@ -25,11 +21,7 @@ internal class EmailScanner : IEmailScanner
         return emailFiles;
     }
 
-    /// <summary>
-    /// Сканирует указанную директорию на наличие файлов с метаданными электронной почты (с расширением .eml.meta).
-    /// </summary>
-    /// <param name="directory">Путь к директории для сканирования.</param>
-    /// <returns>Список путей к найденным файлам с метаданными.</returns>
+    /// <inheritdoc />
     public List<string> ScanForEmailMetaFiles(string? directory)
     {
         var emailFiles = new List<string>();

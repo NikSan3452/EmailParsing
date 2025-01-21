@@ -12,6 +12,7 @@ internal interface IEmailSaver
     /// </summary>
     /// <param name="content">Содержимое электронной почты для сохранения.</param>
     /// <param name="outputDirectory">Путь к директории, в которую необходимо сохранить содержимое.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns>Задача, представляющая асинхронную операцию сохранения.</returns>
-    Task SaveEmailContentAsync(EmailContent content, string outputDirectory);
+    Task SaveEmailContentAsync(EmailContent content, string outputDirectory, CancellationToken cancellationToken = default);
 }

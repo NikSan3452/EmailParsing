@@ -54,14 +54,16 @@ public interface IEmailParser
     /// <summary>
     ///     Обрабатывает EML-файл.
     /// </summary>
+    /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Задача, представляющая асинхронную операцию.</returns>
-    Task ParseEmlFileAsync();
+    Task ParseEmlFileAsync(CancellationToken cancellationToken);
 
     /// <summary>
     ///     Обрабатывает архив.
     /// </summary>
+    /// <param name="cancellationToken">Токен отмены.</param>
     /// <returns>Задача, представляющая асинхронную операцию.</returns>
-    Task ParseArchiveAsync();
+    Task ParseArchiveAsync(CancellationToken cancellationToken);
 
     /// <summary>
     ///     Очищает временные директории и удаляет исходный файл.

@@ -11,6 +11,8 @@ internal interface IEmailExtractor
     /// Асинхронно извлекает содержимое электронной почты из файла EML.
     /// </summary>
     /// <param name="emailPath">Путь к файлу EML.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns>Задача, представляющая асинхронную операцию. Результатом задачи является объект EmailContent, содержащий извлеченное содержимое.</returns>
-    Task<EmailContent> ExtractEmailContentAsync(string emailPath);
+    /// <exception cref="FileNotFoundException">Если указанный EML-файл не найден.</exception>
+    Task<EmailContent> ExtractEmailContentAsync(string emailPath, CancellationToken cancellationToken = default);
 }

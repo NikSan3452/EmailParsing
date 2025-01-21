@@ -15,13 +15,9 @@ internal class EmailSaver : IEmailSaver
     {
         _helper = helper;
     }
-    /// <summary>
-    /// Асинхронно сохраняет содержимое электронной почты в указанную директорию.
-    /// </summary>
-    /// <param name="content">Содержимое электронной почты для сохранения.</param>
-    /// <param name="outputDirectory">Путь к директории, в которую необходимо сохранить содержимое.</param>
-    /// <returns>Задача, представляющая асинхронную операцию сохранения.</returns>
-    public async Task SaveEmailContentAsync(EmailContent content, string outputDirectory)
+    
+    /// <inheritdoc />
+    public async Task SaveEmailContentAsync(EmailContent content, string outputDirectory, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(content.Subject)) return;
 
@@ -29,9 +25,9 @@ internal class EmailSaver : IEmailSaver
         if (OperatingSystem.IsWindows()) emailDirectory = _helper.ConvertToLongPath(emailDirectory);
         emailDirectory = _helper.CreateDirectory(emailDirectory);
 
-        await SavePlainTextBody(content, emailDirectory);
-        await SaveHtmlBody(content, emailDirectory);
-        await SaveAttachments(content, emailDirectory);
+        await SavePlainTextBody(content, emailDirectory, cancellationToken);
+        await SaveHtmlBody(content, emailDirectory, cancellationToken);
+        await SaveAttachments(content, emailDirectory, cancellationToken);
     }
 
     /// <summary>
@@ -39,14 +35,15 @@ internal class EmailSaver : IEmailSaver
     /// </summary>
     /// <param name="content">Содержимое электронной почты.</param>
     /// <param name="emailDirectory">Путь к директории письма.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns>Задача, представляющая асинхронную операцию сохранения.</returns>
-    private async Task SavePlainTextBody(EmailContent content, string emailDirectory)
+    private async Task SavePlainTextBody(EmailContent content, string emailDirectory, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrEmpty(content.PlainTextBody))
         {
             var filePath = Path.Combine(emailDirectory, $"{content.Subject}.txt");
             if (OperatingSystem.IsWindows()) filePath = _helper.ConvertToLongPath(filePath);
-            await File.WriteAllTextAsync(filePath, content.PlainTextBody, Encoding.UTF8);
+            await File.WriteAllTextAsync(filePath, content.PlainTextBody, Encoding.UTF8, cancellationToken);
         }
     }
 
@@ -55,14 +52,15 @@ internal class EmailSaver : IEmailSaver
     /// </summary>
     /// <param name="content">Содержимое электронной почты.</param>
     /// <param name="emailDirectory">Путь к директории письма.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns>Задача, представляющая асинхронную операцию сохранения.</returns>
-    private async Task SaveHtmlBody(EmailContent content, string emailDirectory)
+    private async Task SaveHtmlBody(EmailContent content, string emailDirectory, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrEmpty(content.HtmlBody))
         {
             var filePath = Path.Combine(emailDirectory, $"{content.Subject}.html");
             if (OperatingSystem.IsWindows()) filePath = _helper.ConvertToLongPath(filePath);
-            await File.WriteAllTextAsync(filePath, content.HtmlBody, Encoding.UTF8);
+            await File.WriteAllTextAsync(filePath, content.HtmlBody, Encoding.UTF8, cancellationToken);
         }
     }
 
@@ -71,17 +69,20 @@ internal class EmailSaver : IEmailSaver
     /// </summary>
     /// <param name="content">Содержимое электронной почты.</param>
     /// <param name="emailDirectory">Путь к директории письма.</param>
+    /// <param name="cancellationToken">Токен отмены операции.</param>
     /// <returns>Задача, представляющая асинхронную операцию сохранения.</returns>
-    private async Task SaveAttachments(EmailContent content, string emailDirectory)
+    private async Task SaveAttachments(EmailContent content, string emailDirectory, CancellationToken cancellationToken)
     {
         if (content.Attachments != null)
             foreach (var attachment in content.Attachments)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (attachment.FileName == null) continue;
 
                 var filePath = Path.Combine(emailDirectory, attachment.FileName);
                 if (OperatingSystem.IsWindows()) filePath = _helper.ConvertToLongPath(filePath);
-                if (attachment.Content != null) await File.WriteAllBytesAsync(filePath, attachment.Content);
+                if (attachment.Content != null) await File.WriteAllBytesAsync(filePath, attachment.Content, cancellationToken);
             }
     }
 }
